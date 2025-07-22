@@ -13,22 +13,27 @@ from .models import User, Profile, Badge, Author, Book, BookImage
 class UserForm(forms.ModelForm):
     class Meta:
         model = User
-        fields = ('name',)
+        fields = ("name",)
 
 
 class ProfileForm(forms.ModelForm):
-    name = forms.CharField(label='Namespace Clash')
+    name = forms.CharField(label="Namespace Clash")
 
     class Meta:
         model = Profile
-        fields = ('name', 'display_name',)
+        fields = (
+            "name",
+            "display_name",
+        )
 
 
 class UserProfileMultiForm(MultiModelForm):
-    form_classes = OrderedDict((
-        ('user', UserForm),
-        ('profile', ProfileForm),
-    ))
+    form_classes = OrderedDict(
+        (
+            ("user", UserForm),
+            ("profile", ProfileForm),
+        )
+    )
 
 
 class RaisesErrorForm(forms.Form):
@@ -36,16 +41,16 @@ class RaisesErrorForm(forms.Form):
     hidden = forms.CharField(widget=forms.HiddenInput)
 
     class Media:
-        js = ('test.js',)
+        js = ("test.js",)
 
     def clean(self):
-        raise ValidationError('It broke')
+        raise ValidationError("It broke")
 
 
 class ErrorMultiForm(MultiForm):
     form_classes = {
-        'errors': RaisesErrorForm,
-        'errors2': RaisesErrorForm,
+        "errors": RaisesErrorForm,
+        "errors2": RaisesErrorForm,
     }
 
 
@@ -57,22 +62,27 @@ class FileForm(forms.Form):
 
 
 class NeedsFileField(MultiForm):
-    form_classes = OrderedDict((
-        ('file', FileForm),
-        ('errors', RaisesErrorForm),
-    ))
+    form_classes = OrderedDict(
+        (
+            ("file", FileForm),
+            ("errors", RaisesErrorForm),
+        )
+    )
 
 
 class BadgeForm(forms.ModelForm):
     class Meta:
         model = Badge
-        fields = ('name', 'color',)
+        fields = (
+            "name",
+            "color",
+        )
 
 
 class BadgeMultiForm(MultiModelForm):
     form_classes = {
-        'badge1': BadgeForm,
-        'badge2': BadgeForm,
+        "badge1": BadgeForm,
+        "badge2": BadgeForm,
     }
 
 
@@ -82,21 +92,24 @@ class NonModelForm(forms.Form):
 
 class MixedForm(MultiModelForm):
     form_classes = {
-        'badge': BadgeForm,
-        'non_model': NonModelForm,
+        "badge": BadgeForm,
+        "non_model": NonModelForm,
     }
 
 
 class AuthorForm(forms.ModelForm):
     class Meta:
         model = Author
-        fields = ('name', 'books',)
+        fields = (
+            "name",
+            "books",
+        )
 
 
 class ManyToManyMultiForm(MultiModelForm):
     form_classes = {
-        'badge': BadgeForm,
-        'author': AuthorForm,
+        "badge": BadgeForm,
+        "author": AuthorForm,
     }
 
 
@@ -111,8 +124,8 @@ class Step1Form(MultiModelForm):
     base_fields = {}
 
     form_classes = {
-        'myfile': OptionalFileForm,
-        'profile': ProfileForm,
+        "myfile": OptionalFileForm,
+        "profile": ProfileForm,
     }
 
 
@@ -123,56 +136,56 @@ class Step2Form(forms.Form):
 class BookForm(forms.ModelForm):
     class Meta:
         model = Book
-        fields = ('name',)
+        fields = ("name",)
 
 
-BookImageFormSet = inlineformset_factory(Book, BookImage, fields=('name',))
+BookImageFormSet = inlineformset_factory(Book, BookImage, fields=("name",))
 
 
 class BookMultiForm(MultiModelForm):
     form_classes = {
-        'book': BookForm,
-        'images': BookImageFormSet,
+        "book": BookForm,
+        "images": BookImageFormSet,
     }
 
     def __init__(self, *args, **kwargs):
-        instance = kwargs.pop('instance', None)
+        instance = kwargs.pop("instance", None)
         if instance is not None:
-            kwargs['instance'] = {
-                'book': instance,
-                'images': instance,
+            kwargs["instance"] = {
+                "book": instance,
+                "images": instance,
             }
         super().__init__(*args, **kwargs)
 
 
 class RaisesErrorBookMultiForm(BookMultiForm):
     form_classes = {
-        'book': BookForm,
-        'error': RaisesErrorForm,
-        'images': BookImageFormSet,
+        "book": BookForm,
+        "error": RaisesErrorForm,
+        "images": BookImageFormSet,
     }
 
 
 class CleanedBookMultiForm(BookMultiForm):
     def clean(self):
-        book = self.cleaned_data['images'][0]['book']
+        book = self.cleaned_data["images"][0]["book"]
         return {
-            'images': [
+            "images": [
                 {
-                    'name': 'Two',
-                    'book': book,
-                    'id': None,
-                    'DELETE': False,
+                    "name": "Two",
+                    "book": book,
+                    "id": None,
+                    "DELETE": False,
                 },
                 {
-                    'name': 'Three',
-                    'book': book,
-                    'id': None,
-                    'DELETE': False,
+                    "name": "Three",
+                    "book": book,
+                    "id": None,
+                    "DELETE": False,
                 },
             ],
-            'book': {
-                'name': 'Overridden',
+            "book": {
+                "name": "Overridden",
             },
         }
 
@@ -180,14 +193,14 @@ class CleanedBookMultiForm(BookMultiForm):
 class RaisesErrorCustomCleanMultiform(UserProfileMultiForm):
     def clean(self):
         cleaned_data = super(UserProfileMultiForm, self).clean()
-        raise ValidationError('It broke')
+        raise ValidationError("It broke")
         return cleaned_data
 
 
 class ModifiesDataCustomCleanMultiform(UserProfileMultiForm):
     def clean(self):
         cleaned_data = super(UserProfileMultiForm, self).clean()
-        cleaned_data['profile']['display_name'] = "cleaned name"
+        cleaned_data["profile"]["display_name"] = "cleaned name"
         return cleaned_data
 
 
@@ -196,12 +209,10 @@ class RegularForm(forms.Form):
 
 
 class InnerMultiform(MultiForm):
-    form_classes = {
-        'foo3': RegularForm
-    }
+    form_classes = {"foo3": RegularForm}
 
 
 class OuterMultiForm(MultiForm):
     form_classes = {
-        'foo4': InnerMultiform,
+        "foo4": InnerMultiform,
     }

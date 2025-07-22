@@ -18,7 +18,7 @@ def construct_querystring(data, **kwargs):
     for key, value in kwargs.items():
         params[key] = value
 
-    if hasattr(params, 'urlencode'):
+    if hasattr(params, "urlencode"):
         return params.urlencode()
     else:
         return urlencode(params)
@@ -29,6 +29,7 @@ class IterDict(OrderedDict):
     Extension of djangos built in sorted dictionary class which iterates
     through the values rather than keys.
     """
+
     def __iter__(self):
         for key in super().__iter__():
             yield self[key]
@@ -38,19 +39,22 @@ class BaseChangeListForm(BetterForm):
     """
     Base class for all ``ChangeListForms``.
     """
+
     def __init__(self, *args, **kwargs):
         """
         Takes an option named argument ``queryset`` as the base queryset used in
         the ``get_queryset`` method.
         """
         try:
-            self.base_queryset = kwargs.pop('queryset', None)
+            self.base_queryset = kwargs.pop("queryset", None)
             if self.base_queryset is None:
                 self.base_queryset = self.model.objects.all()
         except AttributeError:
-            raise AttributeError('`ChangeListForm`s must be instantiated with a\
+            raise AttributeError(
+                "`ChangeListForm`s must be instantiated with a\
                                  queryset, or have a `model` attribute set on\
-                                 them')
+                                 them"
+            )
         super().__init__(*args, **kwargs)
 
     def get_queryset(self):
@@ -68,13 +72,15 @@ class SearchForm(BaseChangeListForm):
     q = forms.CharField(label="Search", required=False)
 
     def __init__(self, *args, **kwargs):
-        self.SEARCH_FIELDS = kwargs.pop('search_fields', self.SEARCH_FIELDS)
+        self.SEARCH_FIELDS = kwargs.pop("search_fields", self.SEARCH_FIELDS)
         super().__init__(*args, **kwargs)
 
         if self.SEARCH_FIELDS is None:
-            raise ImproperlyConfigured('`SearchForm`s must be instantiated with an\
+            raise ImproperlyConfigured(
+                "`SearchForm`s must be instantiated with an\
                                        iterable of fields to search over, or have \
-                                       a `SEARCH_FIELDS` attribute set on them.')
+                                       a `SEARCH_FIELDS` attribute set on them."
+            )
 
     def get_queryset(self):
         """
@@ -84,14 +90,14 @@ class SearchForm(BaseChangeListForm):
         qs = super().get_queryset()
 
         # Do Searching
-        q = self.cleaned_data.get('q', '').strip()
+        q = self.cleaned_data.get("q", "").strip()
         if q:
             args = []
             for field in self.SEARCH_FIELDS:
                 if self.CASE_SENSITIVE:
-                    kwarg = {field + '__contains': q}
+                    kwarg = {field + "__contains": q}
                 else:
-                    kwarg = {field + '__icontains': q}
+                    kwarg = {field + "__icontains": q}
                 args.append(Q(**kwarg))
             if len(args) > 1:
                 qs = qs.filter(reduce(lambda x, y: x | y, args))
@@ -105,8 +111,8 @@ class BoundHeader:
     def __init__(self, form, header):
         self.form = form
         self.header = header
-        self.sorts = getattr(form, 'cleaned_data', {}).get('sorts', [])
-        self.param = "{0}-sorts".format(form.prefix or '').strip('-')
+        self.sorts = getattr(form, "cleaned_data", {}).get("sorts", [])
+        self.param = "{0}-sorts".format(form.prefix or "").strip("-")
 
     @property
     def name(self):
@@ -168,12 +174,12 @@ class BoundHeader:
         """
         classes = []
         if self.is_active:
-            classes.append('active')
+            classes.append("active")
             if self.is_ascending:
-                classes.append('ascending')
+                classes.append("ascending")
             elif self.is_descending:
-                classes.append('descending')
-        return ' '.join(classes)
+                classes.append("descending")
+        return " ".join(classes)
 
     def add_to_sorts(self):
         """
@@ -184,7 +190,9 @@ class BoundHeader:
         if self.sorts and abs(self.sorts[0]) == self._sort_index:
             return [-1 * self.sorts[0]] + self.sorts[1:]
         else:
-            return [self._sort_index] + list(filter(lambda x: abs(x) != self._sort_index, self.sorts))
+            return [self._sort_index] + list(
+                filter(lambda x: abs(x) != self._sort_index, self.sorts)
+            )
 
     @property
     def priority(self):
@@ -193,7 +201,9 @@ class BoundHeader:
 
     @property
     def querystring(self):
-        return construct_querystring(self.form.data, **{self.param: '.'.join(map(str, self.add_to_sorts()))})
+        return construct_querystring(
+            self.form.data, **{self.param: ".".join(map(str, self.add_to_sorts()))}
+        )
 
     @property
     def singular_querystring(self):
@@ -205,7 +215,9 @@ class BoundHeader:
 
     @property
     def remove_querystring(self):
-        return construct_querystring(self.form.data, **{self.param: '.'.join(map(str, self.add_to_sorts()[1:]))})
+        return construct_querystring(
+            self.form.data, **{self.param: ".".join(map(str, self.add_to_sorts()[1:]))}
+        )
 
 
 class Header:
@@ -227,10 +239,12 @@ def is_header_kwargs(header):
     except AttributeError:
         return False
     try:
-        return all((
-            isinstance(header[0], str),
-            isinstance(header[1], dict),
-        ))
+        return all(
+            (
+                isinstance(header[0], str),
+                isinstance(header[1], dict),
+            )
+        )
     except (IndexError, KeyError):
         return False
 
@@ -250,18 +264,28 @@ class HeaderSet:
                 self.headers[header] = self.HeaderClass(header)
             elif is_header_kwargs(header):
                 header_name, header_kwargs = header
-                self.headers[header_name] = self.HeaderClass(header_name, **header_kwargs)
+                self.headers[header_name] = self.HeaderClass(
+                    header_name, **header_kwargs
+                )
             elif len(header):
                 try:
                     header_name = header[0]
                     header_args = header[1:]
-                    self.headers[header_name] = self.HeaderClass(header_name, *header_args)
+                    self.headers[header_name] = self.HeaderClass(
+                        header_name, *header_args
+                    )
                 except KeyError:
-                    raise ImproperlyConfigured('Unknown format in header declaration: `{0}`'.format(repr(header)))
+                    raise ImproperlyConfigured(
+                        "Unknown format in header declaration: `{0}`".format(
+                            repr(header)
+                        )
+                    )
             else:
-                raise ImproperlyConfigured('Unknown format in header declaration: `{0}`'.format(repr(header)))
+                raise ImproperlyConfigured(
+                    "Unknown format in header declaration: `{0}`".format(repr(header))
+                )
         if not len(self) == len(headers):
-            raise ImproperlyConfigured('Header names must be unique')
+            raise ImproperlyConfigured("Header names must be unique")
 
     def __len__(self):
         return len(self.headers)
@@ -272,7 +296,9 @@ class HeaderSet:
 
     def __getitem__(self, key):
         if isinstance(key, int):
-            return self.HeaderClass.BoundClass(self.form, list(self.headers.values())[key])
+            return self.HeaderClass.BoundClass(
+                self.form, list(self.headers.values())[key]
+            )
         else:
             return self.HeaderClass.BoundClass(self.form, self.headers[key])
 
@@ -297,10 +323,11 @@ class SortFormBase(BetterForm):
                 queryset = self.apply_sorting(queryset)
                 return queryset
     """
+
     HeaderSetClass = HeaderSet
     error_messages = {
-        'unknown_header': 'Invalid sort parameter',
-        'unsortable_header': 'Invalid sort parameter',
+        "unknown_header": "Invalid sort parameter",
+        "unsortable_header": "Invalid sort parameter",
     }
     HEADERS = None
     sorts = forms.CharField(required=False, widget=forms.HiddenInput())
@@ -311,30 +338,30 @@ class SortFormBase(BetterForm):
 
     def clean_sorts(self):
         cleaned_data = self.cleaned_data
-        sorts = list(filter(bool, cleaned_data.get('sorts', '').split('.')))
+        sorts = list(filter(bool, cleaned_data.get("sorts", "").split(".")))
         if not sorts:
             return []
         # Ensure that the sort parameter does not contain non-numeric sort indexes
-        if not all([sort.strip('-').isdigit() for sort in sorts]):
-            raise ValidationError(self.error_messages['unknown_header'])
+        if not all([sort.strip("-").isdigit() for sort in sorts]):
+            raise ValidationError(self.error_messages["unknown_header"])
         sorts = [int(sort) for sort in sorts]
         # Ensure that all of our sort parameters are in range of our header values
         if any([abs(sort) > len(self.HEADERS) for sort in sorts]):
-            raise ValidationError(self.error_messages['unknown_header'])
+            raise ValidationError(self.error_messages["unknown_header"])
         # Ensure not un-sortable fields are being sorted by
         if not all(self.HEADERS[abs(i) - 1].is_sortable for i in sorts):
-            raise ValidationError(self.error_messages['unsortable_header'])
+            raise ValidationError(self.error_messages["unsortable_header"])
 
         return sorts
 
     def get_order_by(self):
         # Do Sorting
-        sorts = self.cleaned_data.get('sorts', [])
+        sorts = self.cleaned_data.get("sorts", [])
         order_by = []
         for sort in sorts:
             param = self.headers[abs(sort) - 1].column_name
             if sort < 0:
-                param = '-' + param
+                param = "-" + param
             order_by.append(param)
         return order_by
 

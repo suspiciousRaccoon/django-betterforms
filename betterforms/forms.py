@@ -15,14 +15,16 @@ class CSSClassMixin:
     """
     Sane defaults for error and css classes.
     """
-    error_css_class = 'error'
-    required_css_class = 'required'
+
+    error_css_class = "error"
+    required_css_class = "required"
 
 
 class NonBraindamagedErrorMixin:
     """
     Form mixin for easier field based error messages.
     """
+
     def field_error(self, name, error):
         self._errors = self._errors or ErrorDict()
         self._errors.setdefault(name, self.error_class())
@@ -44,10 +46,11 @@ class LabelSuffixMixin:
         class NoLabelSuffixMixin(LabelSuffixMixin):
             label_suffix = ''
     """
+
     label_suffix = None
 
     def __init__(self, *args, **kwargs):
-        kwargs.setdefault('label_suffix', self.label_suffix)
+        kwargs.setdefault("label_suffix", self.label_suffix)
         super().__init__(*args, **kwargs)
 
 
@@ -78,7 +81,7 @@ flatten_to_tuple = lambda x: tuple(flatten(x))
 
 
 class Fieldset(CSSClassMixin):
-    FIELDSET_CSS_CLASS = 'formFieldset'
+    FIELDSET_CSS_CLASS = "formFieldset"
     css_classes = None
     template_name = None
 
@@ -90,7 +93,11 @@ class Fieldset(CSSClassMixin):
         names = [str(thing) for thing in self.base_fields]
         duplicates = [x for x, y in Counter(names).items() if y > 1]
         if duplicates:
-            raise AttributeError('Name Conflict in fieldset `{0}`.  The name(s) `{1}` appear multiple times.'.format(self.name, duplicates))
+            raise AttributeError(
+                "Name Conflict in fieldset `{0}`.  The name(s) `{1}` appear multiple times.".format(
+                    self.name, duplicates
+                )
+            )
         for key, value in kwargs.items():
             setattr(self, key, value)
 
@@ -136,12 +143,14 @@ class BoundFieldset:
 
     def __str__(self):
         env = {
-            'fieldset': self,
-            'form': self.form,
-            'fieldset_template_name': 'betterforms/fieldset_as_div.html',
+            "fieldset": self,
+            "form": self.form,
+            "fieldset_template_name": "betterforms/fieldset_as_div.html",
         }
         # TODO: don't hardcode the default template name.
-        return render_to_string(self.template_name or 'betterforms/fieldset_as_div.html', env)
+        return render_to_string(
+            self.template_name or "betterforms/fieldset_as_div.html", env
+        )
 
     def __iter__(self):
         for name in self.rows.keys():
@@ -161,7 +170,7 @@ class BoundFieldset:
         css_classes.update(self.fieldset.css_classes or [])
         if self.errors:
             css_classes.add(self.fieldset.error_css_class)
-        return ' '.join(css_classes)
+        return " ".join(css_classes)
 
     @property
     def legend(self):
@@ -177,8 +186,12 @@ class FieldsetMixin(NonBraindamagedErrorMixin):
     @property
     def fieldsets(self):
         if self.base_fieldsets is None:
-            return self.bound_fieldset_class(self, self.fields.keys(), '__base_fieldset__')
-        return self.bound_fieldset_class(self, self.base_fieldsets, self.base_fieldsets.name)
+            return self.bound_fieldset_class(
+                self, self.fields.keys(), "__base_fieldset__"
+            )
+        return self.bound_fieldset_class(
+            self, self.base_fieldsets, self.base_fieldsets.name
+        )
 
     def __getitem__(self, key):
         try:
@@ -197,34 +210,34 @@ class FieldsetMixin(NonBraindamagedErrorMixin):
         return self.as_table()
 
     def as_table(self):
-        raise NotImplementedError('To be implemented')
+        raise NotImplementedError("To be implemented")
 
     def as_ul(self):
-        raise NotImplementedError('To be implemented')
+        raise NotImplementedError("To be implemented")
 
     def as_p(self):
         env = {
-            'form': self,
-            'fieldset_template_name': 'betterforms/fieldset_as_p.html',
-            'field_template_name': 'betterforms/field_as_p.html',
+            "form": self,
+            "fieldset_template_name": "betterforms/fieldset_as_p.html",
+            "field_template_name": "betterforms/field_as_p.html",
         }
-        return render_to_string(self.template_name or 'betterforms/form_as_p.html', env)
+        return render_to_string(self.template_name or "betterforms/form_as_p.html", env)
 
 
 def get_fieldsets(bases, attrs):
     try:
-        return attrs['Meta'].fieldsets
+        return attrs["Meta"].fieldsets
     except (KeyError, AttributeError):
         for base in bases:
-            fieldsets = getattr(base, 'base_fieldsets', None)
+            fieldsets = getattr(base, "base_fieldsets", None)
             if fieldsets is not None:
                 return fieldsets
     return None
 
 
 def get_fieldset_class(bases, attrs):
-    if 'fieldset_class' in attrs:
-        return attrs['fieldset_class']
+    if "fieldset_class" in attrs:
+        return attrs["fieldset_class"]
     else:
         for base in bases:
             try:
@@ -239,16 +252,26 @@ class BetterModelFormMetaclass(forms.models.ModelFormMetaclass):
         base_fieldsets = get_fieldsets(bases, attrs)
         if base_fieldsets is not None:
             FieldsetClass = get_fieldset_class(bases, attrs)
-            base_fieldsets = FieldsetClass('__base_fieldset__', fields=base_fieldsets)
-            attrs['base_fieldsets'] = base_fieldsets
-            Meta = attrs.get('Meta')
-            if Meta and Meta.__dict__.get('fields') is None and Meta.__dict__.get('exclude') is None:
-                attrs['Meta'].fields = flatten_to_tuple(base_fieldsets)
-        attrs['base_fieldsets'] = base_fieldsets
+            base_fieldsets = FieldsetClass("__base_fieldset__", fields=base_fieldsets)
+            attrs["base_fieldsets"] = base_fieldsets
+            Meta = attrs.get("Meta")
+            if (
+                Meta
+                and Meta.__dict__.get("fields") is None
+                and Meta.__dict__.get("exclude") is None
+            ):
+                attrs["Meta"].fields = flatten_to_tuple(base_fieldsets)
+        attrs["base_fieldsets"] = base_fieldsets
         return super().__new__(cls, name, bases, attrs)
 
 
-class BetterModelForm(FieldsetMixin, LabelSuffixMixin, CSSClassMixin, forms.ModelForm, metaclass=BetterModelFormMetaclass):
+class BetterModelForm(
+    FieldsetMixin,
+    LabelSuffixMixin,
+    CSSClassMixin,
+    forms.ModelForm,
+    metaclass=BetterModelFormMetaclass,
+):
     pass
 
 
@@ -257,12 +280,18 @@ class BetterFormMetaClass(forms.forms.DeclarativeFieldsMetaclass):
         base_fieldsets = get_fieldsets(bases, attrs)
         if base_fieldsets is not None:
             FieldsetClass = get_fieldset_class(bases, attrs)
-            base_fieldsets = FieldsetClass('__base_fieldset__', fields=base_fieldsets)
-        attrs['base_fieldsets'] = base_fieldsets
+            base_fieldsets = FieldsetClass("__base_fieldset__", fields=base_fieldsets)
+        attrs["base_fieldsets"] = base_fieldsets
         return super().__new__(cls, name, bases, attrs)
 
 
-class BetterForm(FieldsetMixin, LabelSuffixMixin, CSSClassMixin, forms.forms.BaseForm, metaclass=BetterFormMetaClass):
+class BetterForm(
+    FieldsetMixin,
+    LabelSuffixMixin,
+    CSSClassMixin,
+    forms.forms.BaseForm,
+    metaclass=BetterFormMetaClass,
+):
     """
     A 'Better' base Form class.
     """
