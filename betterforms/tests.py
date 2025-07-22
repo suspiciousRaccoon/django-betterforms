@@ -89,9 +89,7 @@ class TestFieldSets(TestCase):
     def test_assigning_template_name(self):
         fieldset1 = Fieldset("the_name", fields=["a"])
         self.assertIsNone(fieldset1.template_name)
-        fieldset2 = Fieldset(
-            "the_name", fields=["a"], template_name="some_custom_template.html"
-        )
+        fieldset2 = Fieldset("the_name", fields=["a"], template_name="some_custom_template.html")
         self.assertEqual(fieldset2.template_name, "some_custom_template.html")
 
 
@@ -215,17 +213,13 @@ class TestBetterForm(TestCase):
         form = self.TestForm(data)
         self.assertTrue(form.is_valid())
 
-        self.assertNotIn(
-            form.fieldsets[0].fieldset.error_css_class, form.fieldsets[0].css_classes
-        )
+        self.assertNotIn(form.fieldsets[0].fieldset.error_css_class, form.fieldsets[0].css_classes)
 
         form.field_error("first", "test")
         self.assertFalse(form.is_valid())
         fieldsets = [fieldset for fieldset in form.fieldsets]
         self.assertTrue(fieldsets[0].errors)
-        self.assertIn(
-            form.fieldsets[0].fieldset.error_css_class, form.fieldsets[0].css_classes
-        )
+        self.assertIn(form.fieldsets[0].fieldset.error_css_class, form.fieldsets[0].css_classes)
 
     def test_fieldset_css_classes(self):
         class TestForm(BetterForm):
@@ -353,6 +347,7 @@ class TestFormRendering(TestCase):
                 )
 
         self.TestForm = TestForm
+        self.maxDiff = 5000
 
     def test_non_fieldset_form_rendering(self):
         class TestForm(BetterForm):
@@ -391,7 +386,24 @@ class TestFormRendering(TestCase):
             test,
         )
         form.field_error("a", "this is an error message")
-        if DJANGO_VERSION >= (5, 0):  # Django 5.0 and later
+        if DJANGO_VERSION >= (5, 2):  # Django 5.2+
+            test = """
+                <div class="required error a formField">
+                    <label class="required" for="id_a">A</label>
+                    <input aria-describedby="id_a_error" aria-invalid="true" id="id_a" name="a" required type="text" />
+                    <ul class="errorlist"><li>this is an error message</li></ul>
+                </div>
+                <div class="b formField">
+                    <label for="id_b">B</label>
+                    <input id="id_b" name="b" type="text" />
+                </div>
+                <div class="required c formField">
+                    <label class="required" for="id_c">C</label>
+                    <input id="id_c" name="c" required type="text" />
+                </div>
+                """
+
+        elif DJANGO_VERSION >= (5, 0) and DJANGO_VERSION <= (5, 2):  # Django 5.1
             test = """
                 <div class="required error a formField">
                     <label class="required" for="id_a">A</label>
@@ -461,7 +473,28 @@ class TestFormRendering(TestCase):
             test,
         )
         form.field_error("a", "this is an error message")
-        if DJANGO_VERSION >= (5, 0):  # Django 5.0 and later
+        if DJANGO_VERSION >= (5, 2):  # Django 5.2+
+            test = """
+                <fieldset class="formFieldset first">
+                    <div class="required error a formField">
+                        <label class="required" for="id_a">A</label>
+                        <input aria-describedby="id_a_error" aria-invalid="true" id="id_a" name="a" required type="text" />
+                        <ul class="errorlist"><li>this is an error message</li></ul>
+                    </div>
+                    <div class="required b formField">
+                        <label class="required" for="id_b">B</label>
+                        <input id="id_b" name="b" required type="text" />
+                    </div>
+                </fieldset>
+                <fieldset class="formFieldset second">
+                    <div class="required c formField">
+                        <label class="required" for="id_c">C</label>
+                        <input id="id_c" name="c" required type="text" />
+                    </div>
+                </fieldset>
+                """
+
+        elif DJANGO_VERSION >= (5, 0) and DJANGO_VERSION <= (5, 2):  # Django 5.1
             test = """
                 <fieldset class="formFieldset first">
                     <div class="required error a formField">
@@ -579,13 +612,34 @@ class TestFormRendering(TestCase):
 
         form.field_error("a", "this is an error")
 
-        if DJANGO_VERSION >= (5, 0):  # Django 5.0 and later
+        if DJANGO_VERSION >= (5, 2):  # Django 5.2+
             test = """
                 <fieldset class="formFieldset first">
                     <p class="required error">
                         <ul class="errorlist"><li>this is an error</li></ul>
                         <label class="required" for="id_a">A</label>
-                        <input id="id_a" name="a" required type="text" aria-invalid="true" />
+                        <input aria-describedby="id_a_error" id="id_a" name="a" required type="text" aria-invalid="true" />
+                    </p>
+                    <p class="required">
+                        <label class="required" for="id_b">B</label>
+                        <input id="id_b" name="b" required type="text" />
+                    </p>
+                </fieldset>
+                <fieldset class="formFieldset second">
+                    <p class="required">
+                        <label class="required" for="id_c">C</label>
+                        <input id="id_c" name="c" required type="text" />
+                    </p>
+                </fieldset>
+            """
+
+        elif DJANGO_VERSION >= (5, 0) and DJANGO_VERSION <= (5, 2):  # Django 5.1
+            test = """
+                <fieldset class="formFieldset first">
+                    <p class="required error">
+                        <ul class="errorlist"><li>this is an error</li></ul>
+                        <label class="required" for="id_a">A</label>
+                        <input aria-invalid="true" id="id_a" name="a" required type="text" />
                     </p>
                     <p class="required">
                         <label class="required" for="id_b">B</label>
@@ -975,9 +1029,7 @@ class TestHeaderSetAPI(TestCase):
 
 class TestBoundHeaderAPI(TestCase):
     def setUp(self):
-        self.HEADERS = (
-            Header("test_name", "Test Label", "column_name", is_sortable=True),
-        )
+        self.HEADERS = (Header("test_name", "Test Label", "column_name", is_sortable=True),)
         self.form = mock.NonCallableMagicMock(forms.Form)
         self.form.prefix = None
         self.form.HEADERS = self.HEADERS
@@ -1122,15 +1174,11 @@ class TestBoundHeaderAPI(TestCase):
         self.form.HEADERS = HEADERS
         header_set = HeaderSet(self.form, HEADERS)
 
-        self.assertQueryStringEqual(
-            header_set["field_a"].querystring, "field=value&sorts=1"
-        )
+        self.assertQueryStringEqual(header_set["field_a"].querystring, "field=value&sorts=1")
         self.assertQueryStringEqual(
             header_set["field_a"].singular_querystring, "field=value&sorts=1"
         )
-        self.assertQueryStringEqual(
-            header_set["field_a"].remove_querystring, "field=value&sorts="
-        )
+        self.assertQueryStringEqual(header_set["field_a"].remove_querystring, "field=value&sorts=")
 
     def test_bound_header_querystring_with_querydict_overwrites_instead_of_appending(
         self,
@@ -1142,15 +1190,11 @@ class TestBoundHeaderAPI(TestCase):
         header_set = HeaderSet(self.form, HEADERS)
 
         # It used to output 'field=value&sorts=1&sorts=-1'
-        self.assertQueryStringEqual(
-            header_set["field_a"].querystring, "field=value&sorts=-1"
-        )
+        self.assertQueryStringEqual(header_set["field_a"].querystring, "field=value&sorts=-1")
         self.assertQueryStringEqual(
             header_set["field_a"].singular_querystring, "field=value&sorts=-1"
         )
-        self.assertQueryStringEqual(
-            header_set["field_a"].remove_querystring, "field=value&sorts="
-        )
+        self.assertQueryStringEqual(header_set["field_a"].remove_querystring, "field=value&sorts=")
 
 
 class TestSortFormAPI(TestCase):
