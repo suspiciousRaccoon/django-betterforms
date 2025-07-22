@@ -22,7 +22,7 @@ setup(
     packages=[
         package for package in find_packages() if package.startswith("betterforms")
     ],
-    install_requires=["Django>=3.2"],
+    install_requires=["Django>=4.2"],
     zip_safe=False,
     include_package_data=True,
     classifiers=[

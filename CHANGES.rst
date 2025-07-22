@@ -1,13 +1,15 @@
-2.0.1 (unreleased)
+3.0.0 (unreleased)
 ------------------
 
 Backwards-incompatible changes:
 
 - Removed support for Django versions lower than 4.2
+- Removed support for Python lowe than 3.10
 
 New Features and Bugfixes:
 
-- Add support for Django 4.2, 5.0 and 5.0
+- Add support for Django 4.2, 5.1, 5.2
+- Add support for Python 3.10, 3.11, 3.12, 3.13
 
 2.0.0 (2022-08-11)
 ------------------
