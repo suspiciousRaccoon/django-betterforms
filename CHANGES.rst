@@ -4,7 +4,7 @@
 Backwards-incompatible changes:
 
 - Removed support for Django versions lower than 4.2
-- Removed support for Python lowe than 3.10
+- Removed support for Python lower than 3.10
 
 New Features and Bugfixes:
 
