@@ -2,3 +2,4 @@ django-formtools
 pytest
 pytest-django
 pytest-cov
+ruff

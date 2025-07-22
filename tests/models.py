@@ -8,7 +8,9 @@ class User(models.Model):
 
 class Profile(models.Model):
     user = models.OneToOneField(
-        User, on_delete=models.CASCADE, related_name='profile',
+        User,
+        on_delete=models.CASCADE,
+        related_name="profile",
     )
     display_name = models.CharField(max_length=255, blank=True)
 
@@ -20,7 +22,7 @@ class Badge(models.Model):
 
 class Author(models.Model):
     name = models.CharField(max_length=255)
-    books = models.ManyToManyField('Book', related_name='authors')
+    books = models.ManyToManyField("Book", related_name="authors")
 
 
 class Book(models.Model):
@@ -29,6 +31,8 @@ class Book(models.Model):
 
 class BookImage(models.Model):
     book = models.ForeignKey(
-        Book, on_delete=models.CASCADE, related_name='images',
+        Book,
+        on_delete=models.CASCADE,
+        related_name="images",
     )
     name = models.CharField(max_length=255)
