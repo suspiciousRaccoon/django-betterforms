@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "django-betterforms"
+version = "2.0.1.dev0"
+description = "App for Django featuring improved form base classes."
+readme = "README.rst"
+authors = [{ name = "Fusionbox", email = "programmers@fusionbox.com" }]
+license = { file = "LICENSE" }
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Framework :: Django",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: BSD License",
+    "Framework :: Django",
+    "Framework :: Django :: 4.2",
+    "Framework :: Django :: 5.1",
+    "Framework :: Django :: 5.2",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP",
+]
+requires-python = ">=3.10"
+dependencies = ["django>=4.2"]
+
+[project.urls]
+Homepage = "https://django-betterforms.readthedocs.org/en/latest/"
+
+
+[tool.hatch.build.targets.wheel]
+packages = ["betterforms"]
+
+[dependency-groups]
+dev = [
+    "django-formtools>=2.5.1",
+    "pytest>=8.4.1",
+    "pytest-django>=4.11.1",
+    "ruff>=0.12.4",
+    "tox-uv>=1.26.2",
+]
