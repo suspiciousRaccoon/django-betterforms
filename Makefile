@@ -4,7 +4,7 @@ COVERAGE_ARGS=
 test: test-builtin
 
 test-builtin:
-	DJANGO_SETTINGS_MODULE=$(SETTINGS) py.test $(COVERAGE_ARGS)
+	DJANGO_SETTINGS_MODULE=$(SETTINGS) pytest $(COVERAGE_ARGS)
 
 docs:
 	cd docs && $(MAKE) html

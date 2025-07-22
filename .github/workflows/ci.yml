@@ -26,4 +26,4 @@ jobs:
 
       - name: Run Tests
         run: |
-          make test
+          uv run make test
