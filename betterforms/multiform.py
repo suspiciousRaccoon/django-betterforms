@@ -61,7 +61,7 @@ class MultiForm:
         Returns a form associated with the key, unlike forms this doesn't return a boundfield
         """
         try:
-            form = self.fields[key]
+            form = self.forms[key]
         except KeyError:
             raise KeyError(
                 "Form '%s' not found in '%s'. Choices are: %s."
