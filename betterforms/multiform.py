@@ -85,12 +85,12 @@ class MultiForm:
         return errors
 
     @property
-    def fields(self):
-        fields = []
-        for form_name in self.forms:
-            form = self.forms[form_name]
-            for field_name in form.fields:
-                fields += [form.add_prefix(field_name)]
+    def fields(self) -> OrderedDict[str, Field]:
+        fields = OrderedDict()
+        for form in self.forms.values():
+            for field_name, field in form.fields.items():
+                prefixed_name = form.add_prefix(field_name)
+                fields[prefixed_name] = field
         return fields
 
     def __iter__(self):

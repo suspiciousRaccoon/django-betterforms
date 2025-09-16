@@ -5,6 +5,7 @@ Backwards-incompatible changes:
 
 - Removed support for Django versions lower than 4.2
 - Removed support for Python lower than 3.10
+- Multiform fields attribute now returns a dictionary with a {prefix-field_name: Field} structure
 
 New Features and Bugfixes:
 
