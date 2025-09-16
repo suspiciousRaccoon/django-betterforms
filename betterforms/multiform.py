@@ -57,7 +57,21 @@ class MultiForm:
         return self.as_table()
 
     def __getitem__(self, key):
-        return self.forms[key]
+        """
+        Returns a form associated with the key, unlike forms this doesn't return a boundfield
+        """
+        try:
+            form = self.fields[key]
+        except KeyError:
+            raise KeyError(
+                "Form '%s' not found in '%s'. Choices are: %s."
+                % (
+                    key,
+                    self.__class__.__name__,
+                    ", ".join(sorted(self.forms)),
+                )
+            )
+        return form
 
     @property
     def errors(self):
