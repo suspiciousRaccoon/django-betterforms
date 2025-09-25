@@ -65,8 +65,12 @@ class MultiFormTest(TestCase):
 
     def test_fields(self):
         form = UserProfileMultiForm()
+<<<<<<< Updated upstream
         self.assertEqual(form.fields.keys(), {"user-name", "profile-name", "profile-display_name"})
         self.assertTrue(isinstance(field, forms.Field) for field in form.fields.values())
+=======
+        self.assertEqual(form.fields, ["user-name", "profile-name", "profile-display_name"])
+>>>>>>> Stashed changes
 
     def test_errors(self):
         form = ErrorMultiForm()
@@ -415,6 +419,7 @@ class MultiModelFormTest(TestCase):
         pp(form.errors)
         self.assertTrue(form.is_valid())
 
+<<<<<<< Updated upstream
     def test_is_invalid__with_formset(self):
         form = BookMultiForm(
             {
@@ -432,6 +437,8 @@ class MultiModelFormTest(TestCase):
         pp(form.errors)
         self.assertTrue(form.is_valid())
 
+=======
+>>>>>>> Stashed changes
     def test_override_clean(self):
         form = CleanedBookMultiForm(
             {
