@@ -1,12 +1,13 @@
+from collections import OrderedDict
+from functools import reduce
 from itertools import chain
 from operator import add
-from collections import OrderedDict
+from typing import Any
 
-from django.forms import BaseFormSet
+from django.core.exceptions import NON_FIELD_ERRORS, ValidationError
+from django.forms import BaseForm, BaseFormSet, Field
 from django.forms.utils import ErrorList
-from django.core.exceptions import ValidationError, NON_FIELD_ERRORS
 from django.utils.safestring import mark_safe
-from functools import reduce
 
 
 class MultiForm:
@@ -15,13 +16,16 @@ class MultiForm:
     great for using more than one form on a page that share the same submit
     button.  MultiForm imitates the Form API so that it is invisible to anybody
     else that you are using a MultiForm.
+
+    Validation via form field is not supported
     """
 
-    form_classes = {}
+    form_classes: dict[str, type[BaseForm]] = {}
 
     def __init__(self, data=None, files=None, *args, **kwargs):
         # Some things, such as the WizardView expect these to exist.
-        self.data, self.files = data, files
+        self.data = data
+        self.files = files
         kwargs.update(
             data=data,
             files=files,
@@ -30,14 +34,15 @@ class MultiForm:
         self.initials = kwargs.pop("initial", None)
         if self.initials is None:
             self.initials = {}
-        self.forms = OrderedDict()
+        self.forms: OrderedDict[str, BaseForm] = OrderedDict()
         self.crossform_errors = []
+        self._errors = None  # Stores the errors after clean() has been called.
 
         for key, form_class in self.form_classes.items():
             fargs, fkwargs = self.get_form_args_kwargs(key, args, kwargs)
             self.forms[key] = form_class(*fargs, **fkwargs)
 
-    def get_form_args_kwargs(self, key, args, kwargs):
+    def get_form_args_kwargs(self, key: str, args, kwargs):
         """
         Returns the args and kwargs for initializing one of our form children.
         """
@@ -75,14 +80,9 @@ class MultiForm:
 
     @property
     def errors(self):
-        errors = {}
-        for form_name in self.forms:
-            form = self.forms[form_name]
-            for field_name in form.errors:
-                errors[form.add_prefix(field_name)] = form.errors[field_name]
-        if self.crossform_errors:
-            errors[NON_FIELD_ERRORS] = self.crossform_errors
-        return errors
+        if self._errors is None:
+            self.full_clean()
+        return self._errors
 
     @property
     def fields(self) -> OrderedDict[str, Field]:
@@ -100,6 +100,29 @@ class MultiForm:
     @property
     def is_bound(self):
         return any(form.is_bound for form in self.forms.values())
+
+    def full_clean(self):
+        # old
+        self._errors = {}
+        for form_name in self.forms:
+            form = self.forms[form_name]
+            for field_name in form.errors:
+                self._errors[form.add_prefix(field_name)] = form.errors[field_name]
+        if self.crossform_errors:
+            self._errors[NON_FIELD_ERRORS] = self.crossform_errors
+
+        # new
+        forms_valid = all(form.is_valid() for form in self.forms.values())
+        self._cleaned_data = OrderedDict(
+            (key, form.cleaned_data) for key, form in self.forms.items() if form.is_valid()
+        )
+        try:
+            extra_cleaned = self.clean()
+            if extra_cleaned:
+                self._cleaned_data.update(extra_cleaned)
+        except ValidationError as e:
+            self.add_crossform_error(e)
+        return forms_valid and not self.crossform_errors
 
     def clean(self):
         """
@@ -119,6 +142,8 @@ class MultiForm:
         except ValidationError as e:
             self.add_crossform_error(e)
         return forms_valid and not self.crossform_errors
+
+        # return self.is_bound and not self.errors
 
     def non_field_errors(self):
         form_errors = (
@@ -155,13 +180,11 @@ class MultiForm:
     @property
     def cleaned_data(self):
         return OrderedDict(
-            (key, form.cleaned_data)
-            for key, form in self.forms.items()
-            if form.is_valid()
+            (key, form.cleaned_data) for key, form in self.forms.items() if form.is_valid()
         )
 
     @cleaned_data.setter
-    def cleaned_data(self, data):
+    def cleaned_data(self, data: dict[str, Any]):
         for key, value in data.items():
             child_form = self[key]
             if isinstance(child_form, BaseFormSet):
@@ -195,9 +218,7 @@ class MultiModelForm(MultiForm):
         return fargs, fkwargs
 
     def save(self, commit=True):
-        objects = OrderedDict(
-            (key, form.save(commit)) for key, form in self.forms.items()
-        )
+        objects = OrderedDict((key, form.save(commit)) for key, form in self.forms.items())
 
         if any(hasattr(form, "save_m2m") for form in self.forms.values()):
 
