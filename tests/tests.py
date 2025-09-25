@@ -9,23 +9,27 @@ try:
 except ImportError:
     # BBB: Django <= 2.2
     from django.utils.encoding import force_text as force_str
+from django import forms
 from django.urls import reverse
 
-from .models import User, Profile, Badge, Book
+from betterforms.multiform import MultiForm
+
 from .forms import (
-    UserProfileMultiForm,
     BadgeMultiForm,
-    ErrorMultiForm,
-    MixedForm,
-    NeedsFileField,
-    ManyToManyMultiForm,
-    RaisesErrorBookMultiForm,
-    CleanedBookMultiForm,
     BookMultiForm,
-    RaisesErrorCustomCleanMultiform,
+    CleanedBookMultiForm,
+    ErrorMultiForm,
+    ManyToManyMultiForm,
+    MixedForm,
     ModifiesDataCustomCleanMultiform,
+    NeedsFileField,
     OuterMultiForm,
+    RaisesErrorBookMultiForm,
+    RaisesErrorCustomCleanMultiform,
+    UserProfileMultiForm,
+    ValidationError,
 )
+from .models import Badge, Book, Profile, User
 
 
 class MultiFormTest(TestCase):
@@ -442,3 +446,67 @@ class MultiModelFormTest(TestCase):
         )
         # assertDoesntRaise AttributeError
         self.assertEqual(form.non_field_errors().as_text(), "* It broke")
+
+
+from django import forms
+
+
+class TestMaybe(TestCase):
+    def test_crossform_clean_contract(self):
+        class CustomMultiForm(MultiForm):
+            form_classes = {"user": DummyForm}
+
+            def clean(self):
+                # Always raise a ValidationError
+                raise ValidationError("cross form error")
+
+        form = CustomMultiForm(data={"user-name": "Alice"})
+        # child form is valid, but clean() raises ValidationError
+        self.assertFalse(form.is_valid())
+        self.assertIn("cross form error", str(form.non_field_errors()))
+
+
+class DummyForm(forms.Form):
+    name = forms.CharField(required=True)
+
+
+class MultiFormEdgeCaseTests(TestCase):
+    def test_empty_form_classes(self):
+        class EmptyMultiForm(MultiForm):
+            form_classes = {}
+
+        form = EmptyMultiForm(data={})
+        # is_valid() returns True because all([]) == True
+        self.assertTrue(form.is_valid())
+        # but there are no forms inside
+        self.assertEqual(form.forms, {})
+        self.assertEqual(form.cleaned_data, {})
+
+    def test_cleaned_data_skips_invalid_form(self):
+        class MixedMultiForm(MultiForm):
+            form_classes = {"user": DummyForm, "profile": DummyForm}
+
+        form = MixedMultiForm(
+            data={
+                "user-name": "Alice",  # valid
+                "profile-name": "",  # invalid, required field missing
+            }
+        )
+        self.assertFalse(form.is_valid())
+        cleaned = form.cleaned_data
+        # user form data present
+        self.assertIn("user", cleaned)
+        self.assertEqual(cleaned["user"]["name"], "Alice")
+        # profile missing from cleaned_data because invalid
+        self.assertNotIn("profile", cleaned)
+
+    def test_cleaned_data_setter_assigns_directly(self):
+        class SetterMultiForm(MultiForm):
+            form_classes = {"user": DummyForm}
+
+        form = SetterMultiForm(data={"user-name": "Alice"})
+        self.assertTrue(form.is_valid())
+        # override cleaned_data directly
+        form.cleaned_data = {"user": {"name": "Overridden"}}
+        # brittle: we directly replaced child form.cleaned_data
+        self.assertEqual(form["user"].cleaned_data["name"], "Overridden")
