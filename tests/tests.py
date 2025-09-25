@@ -69,7 +69,8 @@ class MultiFormTest(TestCase):
 
     def test_fields(self):
         form = UserProfileMultiForm()
-        self.assertEqual(form.fields, ["user-name", "profile-name", "profile-display_name"])
+        self.assertEqual(form.fields.keys(), {"user-name", "profile-name", "profile-display_name"})
+        self.assertTrue(isinstance(field, forms.Field) for field in form.fields.values())
 
     def test_errors(self):
         form = ErrorMultiForm()
