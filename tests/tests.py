@@ -417,22 +417,30 @@ class MultiModelFormTest(TestCase):
         )
         self.assertTrue(form.is_valid())
 
-    def test_is_invalid__with_formset(self):
+    def test_is_invalid_with_formset(self):
+        """
+        an invalid formset doesnt have any cleaned_data
+        an invalid from does
+        """
         form = BookMultiForm(
             {
                 "book-name": "Test",
                 "images-0-name": "One",
-                "images-1-name": "",
+                "images-0-date": "1904-06-16",
+                "images-1-name": "Two",
+                "images-1-date": "",
                 "images-TOTAL_FORMS": "3",
                 "images-INITIAL_FORMS": "0",
                 "images-MAX_NUM_FORMS": "1000",
             }
         )
-        from pprint import pp
+        self.assertTrue(form.cleaned_data.get("book"))
+        self.assertFalse(form.cleaned_data.get("images", False))
 
-        pp(form.is_valid())
-        pp(form.errors)
-        self.assertTrue(form.is_valid())
+        self.assertTrue(form.errors)
+        self.assertListEqual(
+            form.errors.get("images"), [{}, {"date": ["This field is required."]}, {}]
+        )
 
     def test_override_clean(self):
         form = CleanedBookMultiForm(
