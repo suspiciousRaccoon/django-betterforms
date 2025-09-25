@@ -179,6 +179,9 @@ class MultiForm:
 
     @property
     def cleaned_data(self):
+        """
+        Only valid form's data is returned due to formset not having the cleaned_data attribute if invalid
+        """
         return OrderedDict(
             (key, form.cleaned_data) for key, form in self.forms.items() if form.is_valid()
         )
