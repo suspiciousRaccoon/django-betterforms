@@ -77,9 +77,22 @@ class MultiFormTest(TestCase):
         self.assertEqual(form.errors, {})
 
     def test_errors_crossform(self):
-        form = ErrorMultiForm()
+        # if form isn't bound full_clean isnt processed
+        form = ErrorMultiForm(
+            data={
+                "errors-name": "error",
+                "errors-hidden": "hidden",
+                "errors2-name": "error",
+                "errors2-hidden": "hidden2",
+            }
+        )
+
         form.add_crossform_error("Error")
-        self.assertEqual(form.errors, {"__all__": ["Error"]})
+
+        self.assertEqual(
+            form.errors,
+            {"__all__": ["Error"], "errors-__all__": ["It broke"], "errors2-__all__": ["It broke"]},
+        )
 
     def test_to_str_is_as_table(self):
         form = UserProfileMultiForm()
