@@ -415,6 +415,23 @@ class MultiModelFormTest(TestCase):
         pp(form.errors)
         self.assertTrue(form.is_valid())
 
+    def test_is_invalid__with_formset(self):
+        form = BookMultiForm(
+            {
+                "book-name": "Test",
+                "images-0-name": "One",
+                "images-1-name": "",
+                "images-TOTAL_FORMS": "3",
+                "images-INITIAL_FORMS": "0",
+                "images-MAX_NUM_FORMS": "1000",
+            }
+        )
+        from pprint import pp
+
+        pp(form.is_valid())
+        pp(form.errors)
+        self.assertTrue(form.is_valid())
+
     def test_override_clean(self):
         form = CleanedBookMultiForm(
             {
