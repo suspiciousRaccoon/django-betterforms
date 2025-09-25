@@ -36,3 +36,4 @@ class BookImage(models.Model):
         related_name="images",
     )
     name = models.CharField(max_length=255)
+    date = models.DateField()

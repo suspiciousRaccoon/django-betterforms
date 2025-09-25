@@ -139,7 +139,7 @@ class BookForm(forms.ModelForm):
         fields = ("name",)
 
 
-BookImageFormSet = inlineformset_factory(Book, BookImage, fields=("name",))
+BookImageFormSet = inlineformset_factory(Book, BookImage, fields=("name", "date"))
 
 
 class BookMultiForm(MultiModelForm):
