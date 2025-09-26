@@ -476,7 +476,9 @@ class MultiModelFormTest(TestCase):
             {
                 "book-name": "Test",
                 "images-0-name": "One",
+                "images-0-date": "1904-06-16",
                 "images-1-name": "Two",
+                "images-1-date": "1904-06-16",
                 "images-TOTAL_FORMS": "3",
                 "images-INITIAL_FORMS": "0",
                 "images-MAX_NUM_FORMS": "1000",
