@@ -305,6 +305,35 @@ class MultiFormTest(TestCase):
         form.is_valid()
         self.assertTrue(form["foo4"].cleaned_data == OrderedDict([("foo3", {})]))
 
+    def test_cleaned_data_skips_invalid_form(self):
+        """
+        `cleaned_data` skips invalid forms due to formsets raising an exception if they aren't valid
+        """
+        form = UserProfileMultiForm(
+            {
+                "user-name": "",
+                "profile-name": "foo",
+            }
+        )
+        self.assertFalse(form.is_valid())
+        cleaned = form.cleaned_data
+
+        self.assertIn("profile", cleaned)
+        self.assertEqual(cleaned["profile"]["name"], "foo")
+        self.assertNotIn("user", cleaned)
+
+    def test_cleaned_data_setter_assigns_directly(self):
+        form = UserProfileMultiForm(
+            {
+                "user-name": "foo",
+                "profile-name": "foo",
+            }
+        )
+
+        self.assertTrue(form.is_valid())
+        form.cleaned_data = {"user": {"name": "Overridden"}}
+        self.assertEqual(form["user"].cleaned_data["name"], "Overridden")
+
 
 class MultiModelFormTest(TestCase):
     def test_save(self):
