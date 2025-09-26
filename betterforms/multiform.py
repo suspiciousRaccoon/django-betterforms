@@ -101,28 +101,36 @@ class MultiForm:
     def is_bound(self):
         return any(form.is_bound for form in self.forms.values())
 
-    def full_clean(self):
-        # old
-        self._errors = {}
-        for form_name in self.forms:
-            form = self.forms[form_name]
-            for field_name in form.errors:
-                self._errors[form.add_prefix(field_name)] = form.errors[field_name]
-        if self.crossform_errors:
-            self._errors[NON_FIELD_ERRORS] = self.crossform_errors
+    def full_clean(self) -> None:
+        self._errors = ErrorDict()
 
-        # new
-        forms_valid = all(form.is_valid() for form in self.forms.values())
+        if not self.is_bound:
+            return
+
+        for key, form in self.forms.items():
+            # triggers full_clean once for each form
+            form_errors = getattr(form, "errors", {})
+            # forms use dicts, formsets use lists
+            if isinstance(form_errors, dict):
+                for field_name, error in form.errors.items():
+                    self._errors[form.add_prefix(field_name)] = error
+            elif isinstance(form_errors, list):
+                self._errors[key] = form_errors
+
         self._cleaned_data = OrderedDict(
             (key, form.cleaned_data) for key, form in self.forms.items() if form.is_valid()
         )
+
         try:
-            extra_cleaned = self.clean()
-            if extra_cleaned:
-                self._cleaned_data.update(extra_cleaned)
+            cleaned_data = self.clean()
         except ValidationError as e:
             self.add_crossform_error(e)
-        return forms_valid and not self.crossform_errors
+        else:
+            if cleaned_data is not None:
+                self.cleaned_data = cleaned_data
+
+        if len(self.crossform_errors) > 0:
+            self._errors[NON_FIELD_ERRORS] = self.crossform_errors
 
     def clean(self):
         """
@@ -135,12 +143,15 @@ class MultiForm:
     def add_crossform_error(self, e):
         self.crossform_errors.append(e)
 
-    def is_valid(self):
+    def is_valid(self) -> bool:
+        if not self.is_bound:
+            return False
+
+        # trigger full_clean once
+        self.errors
+
         forms_valid = all(form.is_valid() for form in self.forms.values())
-        try:
-            self.cleaned_data = self.clean()
-        except ValidationError as e:
-            self.add_crossform_error(e)
+
         return forms_valid and not self.crossform_errors
 
         # return self.is_bound and not self.errors
