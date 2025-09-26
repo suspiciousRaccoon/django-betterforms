@@ -5,11 +5,15 @@ Backwards-incompatible changes:
 
 - Removed support for Django versions lower than 4.2
 - Removed support for Python lower than 3.10
+- Multiform fields attribute now returns a dictionary with a {prefix-field_name: Field} structure, similar to normal django forms
+- Refactored multiform code to be more similar to standard django forms
 
 New Features and Bugfixes:
 
 - Add support for Django 4.2, 5.1, 5.2
 - Add support for Python 3.10, 3.11, 3.12, 3.13
+- Fix errors attribute not working with formsets
+- Added type hints to multiform code
 
 2.0.0 (2022-08-11)
 ------------------

@@ -1,12 +1,13 @@
+from collections import OrderedDict
+from functools import reduce
 from itertools import chain
 from operator import add
-from collections import OrderedDict
+from typing import Any, Iterator
 
-from django.forms import BaseFormSet
-from django.forms.utils import ErrorList
-from django.core.exceptions import ValidationError, NON_FIELD_ERRORS
-from django.utils.safestring import mark_safe
-from functools import reduce
+from django.core.exceptions import NON_FIELD_ERRORS, ValidationError
+from django.forms import BaseForm, BaseFormSet, BoundField, Field
+from django.forms.utils import ErrorDict, ErrorList
+from django.utils.safestring import SafeText, mark_safe
 
 
 class MultiForm:
@@ -15,29 +16,33 @@ class MultiForm:
     great for using more than one form on a page that share the same submit
     button.  MultiForm imitates the Form API so that it is invisible to anybody
     else that you are using a MultiForm.
+
+    Validation via form field is not supported
     """
 
-    form_classes = {}
+    form_classes: dict[str, type[BaseForm | BaseFormSet]] = {}
 
-    def __init__(self, data=None, files=None, *args, **kwargs):
+    def __init__(self, data=None, files=None, *args, **kwargs) -> None:
         # Some things, such as the WizardView expect these to exist.
-        self.data, self.files = data, files
+        self.data = data
+        self.files = files
         kwargs.update(
             data=data,
             files=files,
         )
 
-        self.initials = kwargs.pop("initial", None)
+        self.initials: dict[str, Any] = kwargs.pop("initial", None)
         if self.initials is None:
             self.initials = {}
-        self.forms = OrderedDict()
-        self.crossform_errors = []
+        self.forms: OrderedDict[str, BaseForm | BaseFormSet] = OrderedDict()
+        self.crossform_errors: list[ValidationError] = []
+        self._errors: ErrorDict | None = None
 
         for key, form_class in self.form_classes.items():
             fargs, fkwargs = self.get_form_args_kwargs(key, args, kwargs)
             self.forms[key] = form_class(*fargs, **fkwargs)
 
-    def get_form_args_kwargs(self, key, args, kwargs):
+    def get_form_args_kwargs(self, key: str, args, kwargs) -> tuple:
         """
         Returns the args and kwargs for initializing one of our form children.
         """
@@ -53,41 +58,81 @@ class MultiForm:
         )
         return args, fkwargs
 
-    def __str__(self):
+    def __str__(self) -> SafeText:
         return self.as_table()
 
-    def __getitem__(self, key):
-        return self.forms[key]
+    def __getitem__(self, key: str) -> BaseFormSet | BaseForm:
+        """
+        Returns a form associated with the key, unlike forms this doesn't return a boundfield
+        """
+        try:
+            form = self.forms[key]
+        except KeyError:
+            raise KeyError(
+                "Form '%s' not found in '%s'. Choices are: %s."
+                % (
+                    key,
+                    self.__class__.__name__,
+                    ", ".join(sorted(self.forms)),
+                )
+            )
+        return form
 
     @property
-    def errors(self):
-        errors = {}
-        for form_name in self.forms:
-            form = self.forms[form_name]
-            for field_name in form.errors:
-                errors[form.add_prefix(field_name)] = form.errors[field_name]
-        if self.crossform_errors:
-            errors[NON_FIELD_ERRORS] = self.crossform_errors
-        return errors
+    def errors(self) -> ErrorDict | None:
+        if self._errors is None:
+            self.full_clean()
+        return self._errors
 
     @property
-    def fields(self):
-        fields = []
-        for form_name in self.forms:
-            form = self.forms[form_name]
-            for field_name in form.fields:
-                fields += [form.add_prefix(field_name)]
+    def fields(self) -> OrderedDict[str, Field]:
+        fields = OrderedDict()
+        for form in self.forms.values():
+            for field_name, field in form.fields.items():
+                prefixed_name = form.add_prefix(field_name)
+                fields[prefixed_name] = field
         return fields
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[BaseForm | BaseFormSet]:
         # TODO: Should the order of the fields be controllable from here?
         return chain.from_iterable(self.forms.values())
 
     @property
-    def is_bound(self):
+    def is_bound(self) -> bool:
         return any(form.is_bound for form in self.forms.values())
 
-    def clean(self):
+    def full_clean(self) -> None:
+        self._errors = ErrorDict()
+
+        if not self.is_bound:
+            return
+
+        for key, form in self.forms.items():
+            # triggers full_clean once for each form
+            form_errors = getattr(form, "errors", {})
+            # forms use dicts, formsets use lists
+            if isinstance(form_errors, dict):
+                for field_name, error in form.errors.items():
+                    self._errors[form.add_prefix(field_name)] = error
+            elif isinstance(form_errors, list):
+                self._errors[key] = form_errors
+
+        self._cleaned_data = OrderedDict(
+            (key, form.cleaned_data) for key, form in self.forms.items() if form.is_valid()
+        )
+
+        try:
+            cleaned_data = self.clean()
+        except ValidationError as e:
+            self.add_crossform_error(e)
+        else:
+            if cleaned_data is not None:
+                self.cleaned_data = cleaned_data
+
+        if len(self.crossform_errors) > 0:
+            self._errors[NON_FIELD_ERRORS] = self.crossform_errors
+
+    def clean(self) -> dict[str, Any]:
         """
         Raises any ValidationErrors required for cross form validation. Should
         return a dict of cleaned_data objects for any forms whose data should
@@ -95,18 +140,21 @@ class MultiForm:
         """
         return self.cleaned_data
 
-    def add_crossform_error(self, e):
+    def add_crossform_error(self, e) -> None:
         self.crossform_errors.append(e)
 
-    def is_valid(self):
+    def is_valid(self) -> bool:
+        if not self.is_bound:
+            return False
+
+        # trigger full_clean once
+        self.errors
+
         forms_valid = all(form.is_valid() for form in self.forms.values())
-        try:
-            self.cleaned_data = self.clean()
-        except ValidationError as e:
-            self.add_crossform_error(e)
+
         return forms_valid and not self.crossform_errors
 
-    def non_field_errors(self):
+    def non_field_errors(self) -> ErrorList:
         form_errors = (
             form.non_field_errors()
             for form in self.forms.values()
@@ -114,40 +162,41 @@ class MultiForm:
         )
         return ErrorList(chain(self.crossform_errors, *form_errors))
 
-    def as_table(self):
+    def as_table(self) -> SafeText:
         return mark_safe("".join(form.as_table() for form in self.forms.values()))
 
-    def as_ul(self):
+    def as_ul(self) -> SafeText:
         return mark_safe("".join(form.as_ul() for form in self.forms.values()))
 
-    def as_p(self):
+    def as_p(self) -> SafeText:
         return mark_safe("".join(form.as_p() for form in self.forms.values()))
 
-    def is_multipart(self):
+    def is_multipart(self) -> bool:
         return any(form.is_multipart() for form in self.forms.values())
 
     @property
-    def media(self):
+    def media(self) -> Any:
         return reduce(add, (form.media for form in self.forms.values()))
 
-    def hidden_fields(self):
+    def hidden_fields(self) -> list[BoundField]:
         # copy implementation instead of delegating in case we ever
         # want to override the field ordering.
         return [field for field in self if field.is_hidden]
 
-    def visible_fields(self):
+    def visible_fields(self) -> list[BoundField]:
         return [field for field in self if not field.is_hidden]
 
     @property
-    def cleaned_data(self):
+    def cleaned_data(self) -> OrderedDict[str, dict[str, Any] | list[dict[str, Any]]]:
+        """
+        Only valid form's data is returned due to formset not having the cleaned_data attribute if invalid
+        """
         return OrderedDict(
-            (key, form.cleaned_data)
-            for key, form in self.forms.items()
-            if form.is_valid()
+            (key, form.cleaned_data) for key, form in self.forms.items() if form.is_valid()
         )
 
     @cleaned_data.setter
-    def cleaned_data(self, data):
+    def cleaned_data(self, data: dict[str, Any]) -> None:
         for key, value in data.items():
             child_form = self[key]
             if isinstance(child_form, BaseFormSet):
@@ -170,7 +219,7 @@ class MultiModelForm(MultiForm):
             self.instances = {}
         super().__init__(*args, **kwargs)
 
-    def get_form_args_kwargs(self, key, args, kwargs):
+    def get_form_args_kwargs(self, key: str, args, kwargs) -> tuple:
         fargs, fkwargs = super().get_form_args_kwargs(key, args, kwargs)
         try:
             # If we only pass instance when there was one specified, we make it
@@ -180,10 +229,8 @@ class MultiModelForm(MultiForm):
             pass
         return fargs, fkwargs
 
-    def save(self, commit=True):
-        objects = OrderedDict(
-            (key, form.save(commit)) for key, form in self.forms.items()
-        )
+    def save(self, commit=True) -> OrderedDict[str, Any]:
+        objects = OrderedDict((key, form.save(commit)) for key, form in self.forms.items())
 
         if any(hasattr(form, "save_m2m") for form in self.forms.values()):
 

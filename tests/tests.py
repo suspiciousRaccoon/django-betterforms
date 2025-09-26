@@ -9,23 +9,27 @@ try:
 except ImportError:
     # BBB: Django <= 2.2
     from django.utils.encoding import force_text as force_str
+from django import forms
 from django.urls import reverse
 
-from .models import User, Profile, Badge, Book
+from betterforms.multiform import MultiForm
+
 from .forms import (
-    UserProfileMultiForm,
     BadgeMultiForm,
-    ErrorMultiForm,
-    MixedForm,
-    NeedsFileField,
-    ManyToManyMultiForm,
-    RaisesErrorBookMultiForm,
-    CleanedBookMultiForm,
     BookMultiForm,
-    RaisesErrorCustomCleanMultiform,
+    CleanedBookMultiForm,
+    ErrorMultiForm,
+    ManyToManyMultiForm,
+    MixedForm,
     ModifiesDataCustomCleanMultiform,
+    NeedsFileField,
     OuterMultiForm,
+    RaisesErrorBookMultiForm,
+    RaisesErrorCustomCleanMultiform,
+    UserProfileMultiForm,
+    ValidationError,
 )
+from .models import Badge, Book, Profile, User
 
 
 class MultiFormTest(TestCase):
@@ -65,18 +69,30 @@ class MultiFormTest(TestCase):
 
     def test_fields(self):
         form = UserProfileMultiForm()
-        self.assertEqual(
-            form.fields, ["user-name", "profile-name", "profile-display_name"]
-        )
+        self.assertEqual(form.fields.keys(), {"user-name", "profile-name", "profile-display_name"})
+        self.assertTrue(isinstance(field, forms.Field) for field in form.fields.values())
 
     def test_errors(self):
         form = ErrorMultiForm()
         self.assertEqual(form.errors, {})
 
     def test_errors_crossform(self):
-        form = ErrorMultiForm()
+        # if form isn't bound full_clean isnt processed
+        form = ErrorMultiForm(
+            data={
+                "errors-name": "error",
+                "errors-hidden": "hidden",
+                "errors2-name": "error",
+                "errors2-hidden": "hidden2",
+            }
+        )
+
         form.add_crossform_error("Error")
-        self.assertEqual(form.errors, {"__all__": ["Error"]})
+
+        self.assertEqual(
+            form.errors,
+            {"__all__": ["Error"], "errors-__all__": ["It broke"], "errors2-__all__": ["It broke"]},
+        )
 
     def test_to_str_is_as_table(self):
         form = UserProfileMultiForm()
@@ -289,6 +305,35 @@ class MultiFormTest(TestCase):
         form.is_valid()
         self.assertTrue(form["foo4"].cleaned_data == OrderedDict([("foo3", {})]))
 
+    def test_cleaned_data_skips_invalid_form(self):
+        """
+        `cleaned_data` skips invalid forms due to formsets raising an exception if they aren't valid
+        """
+        form = UserProfileMultiForm(
+            {
+                "user-name": "",
+                "profile-name": "foo",
+            }
+        )
+        self.assertFalse(form.is_valid())
+        cleaned = form.cleaned_data
+
+        self.assertIn("profile", cleaned)
+        self.assertEqual(cleaned["profile"]["name"], "foo")
+        self.assertNotIn("user", cleaned)
+
+    def test_cleaned_data_setter_assigns_directly(self):
+        form = UserProfileMultiForm(
+            {
+                "user-name": "foo",
+                "profile-name": "foo",
+            }
+        )
+
+        self.assertTrue(form.is_valid())
+        form.cleaned_data = {"user": {"name": "Overridden"}}
+        self.assertEqual(form["user"].cleaned_data["name"], "Overridden")
+
 
 class MultiModelFormTest(TestCase):
     def test_save(self):
@@ -391,7 +436,9 @@ class MultiModelFormTest(TestCase):
             {
                 "book-name": "Test",
                 "images-0-name": "One",
+                "images-0-date": "1904-06-16",
                 "images-1-name": "Two",
+                "images-1-date": "1904-06-16",
                 "images-TOTAL_FORMS": "3",
                 "images-INITIAL_FORMS": "0",
                 "images-MAX_NUM_FORMS": "1000",
@@ -399,12 +446,39 @@ class MultiModelFormTest(TestCase):
         )
         self.assertTrue(form.is_valid())
 
+    def test_is_invalid_with_formset(self):
+        """
+        an invalid formset doesnt have any cleaned_data
+        an invalid from does
+        """
+        form = BookMultiForm(
+            {
+                "book-name": "Test",
+                "images-0-name": "One",
+                "images-0-date": "1904-06-16",
+                "images-1-name": "Two",
+                "images-1-date": "",
+                "images-TOTAL_FORMS": "3",
+                "images-INITIAL_FORMS": "0",
+                "images-MAX_NUM_FORMS": "1000",
+            }
+        )
+        self.assertTrue(form.cleaned_data.get("book"))
+        self.assertFalse(form.cleaned_data.get("images", False))
+
+        self.assertTrue(form.errors)
+        self.assertListEqual(
+            form.errors.get("images"), [{}, {"date": ["This field is required."]}, {}]
+        )
+
     def test_override_clean(self):
         form = CleanedBookMultiForm(
             {
                 "book-name": "Test",
                 "images-0-name": "One",
+                "images-0-date": "1904-06-16",
                 "images-1-name": "Two",
+                "images-1-date": "1904-06-16",
                 "images-TOTAL_FORMS": "3",
                 "images-INITIAL_FORMS": "0",
                 "images-MAX_NUM_FORMS": "1000",
