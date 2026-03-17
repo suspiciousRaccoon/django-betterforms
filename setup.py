@@ -1,10 +1,11 @@
 #!/usr/bin/env python
-from setuptools import setup, find_packages
 import os
+
+from setuptools import find_packages, setup
 
 __doc__ = """App for Django featuring improved form base classes."""
 
-version = "2.0.1.dev0"
+version = "3.0.0"
 
 
 def read(fname):
@@ -19,9 +20,7 @@ setup(
     url="https://django-betterforms.readthedocs.org/en/latest/",
     author="Fusionbox",
     author_email="programmers@fusionbox.com",
-    packages=[
-        package for package in find_packages() if package.startswith("betterforms")
-    ],
+    packages=[package for package in find_packages() if package.startswith("betterforms")],
     install_requires=["Django>=4.2"],
     zip_safe=False,
     include_package_data=True,
